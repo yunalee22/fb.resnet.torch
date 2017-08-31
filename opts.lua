@@ -51,6 +51,8 @@ function M.parse(arg)
    cmd:option('-resetClassifier', 'false', 'Reset the fully connected layer for fine-tuning')
    cmd:option('-nClasses',         0,      'Number of classes in the dataset')
    cmd:text()
+   --------- Noisy label injection options -------------------
+   cmd:option('-noisyLabelProbability', 0.0, 'Probability of label corruption')
 
    local opt = cmd:parse(arg or {})
 

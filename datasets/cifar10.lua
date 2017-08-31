@@ -30,6 +30,14 @@ function CifarDataset:get(i)
    }
 end
 
+function CifarDataset:set(i, value)
+  self.imageInfo.labels[i] = value
+end
+
+function CifarDataset:getNumClasses()
+  return 10
+end
+
 function CifarDataset:size()
    return self.imageInfo.data:size(1)
 end

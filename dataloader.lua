@@ -23,16 +23,45 @@ function DataLoader.create(opt)
    for i, split in ipairs{'train', 'val'} do
       local dataset = datasets.create(opt, split)
       loaders[i] = M.DataLoader(dataset, opt, split)
+      if split == 'train' then
+        loaders[i]:injectNoise(dataset, opt)
+      end
    end
 
    return table.unpack(loaders)
+end
+
+function DataLoader:injectNoise(dataset, opt)
+  local p = opt.noisyLabelProbability
+  print ("Noisy label probability: " .. tostring(p))
+  math.randomseed(os.time())
+
+  for i = 1, dataset:size() do
+    local sample = dataset:get(i)
+
+    if (math.random() < p) then
+      local originalTrainingLabel = sample.target
+      local validOtherChoices = {}
+
+      -- Create valid other choices table
+      for j = 1, dataset:getNumClasses() do
+        table.insert(validOtherChoices, j)
+      end
+      table.remove(validOtherChoices, originalTrainingLabel)
+
+      -- Set new training label for example
+      local newTrainingLabel = validOtherChoices[math.random(#validOtherChoices)]
+      dataset:set(i, newTrainingLabel)
+      print("New label for " .. i .. ": " .. dataset:get(i).target)
+    end
+  end
 end
 
 function DataLoader:__init(dataset, opt, split)
    local manualSeed = opt.manualSeed
    local function init()
       require('datasets/' .. opt.dataset)
-   end
+    end
    local function main(idx)
       if manualSeed ~= 0 then
          torch.manualSeed(manualSeed + idx)
@@ -41,7 +70,7 @@ function DataLoader:__init(dataset, opt, split)
       _G.dataset = dataset
       _G.preprocess = dataset:preprocess()
       return dataset:size()
-   end
+    end
 
    local threads, sizes = Threads(opt.nThreads, init, main)
    self.nCrops = (split == 'val' and opt.tenCrop) and 10 or 1

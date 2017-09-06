@@ -65,4 +65,8 @@ for epoch = startEpoch, opt.nEpochs do
    checkpoints.save(epoch, model, trainer.optimState, bestModel, opt)
 end
 
+-- Save confusion matrix
+print(valLoader.num_classes)
+trainer:saveConfusionMatrix(valLoader)
+
 print(string.format(' * Finished top1: %6.3f  top5: %6.3f', bestTop1, bestTop5))

@@ -123,6 +123,46 @@ function Trainer:test(epoch, dataloader)
    return top1Sum / N, top5Sum / N
 end
 
+function Trainer:saveConfusionMatrix(dataloader)
+  -- Computes the confusion matrix of the specified dataset
+  
+  local size = dataloader:size()
+  local nCrops = self.opt.tenCrop and 10 or 1
+
+  self.model:evaluate()
+  local numClasses = dataloader:getNumClasses()
+  local classes = torch.range(1, numClasses)
+  local cf = optim.ConfusionMatrix(numClasses, classes)
+
+  for n, sample in dataloader:run() do
+    -- Copy input and target to the GPU
+    self:copyInputs(sample)
+    
+    local output = self.model:forward(self.input):float()
+    local batchSize = output:size(1) / nCrops
+    local loss = self.criterion:forward(self.model.output, self.target)
+
+    -- Get predictions
+    if nCrops > 1 then
+      -- Sum over crops
+      output = output:view(output:size(1) / nCrops, nCrops, output:size(2))
+         --:exp()
+         :sum(2):squeeze(2)
+       end
+
+    local batchSize = output:size(1)
+    local _ , predictions = output:float():topk(1, 2, true, true) --descending
+
+    -- Update confusion matrix
+    targs = sample.target:long():view(batchSize, 1)
+    cf:batchAdd(predictions, targs)
+  end
+
+  -- Save confusion matrix to file
+  print(cf.mat)
+  torch.save('conf/cf.dat', cf.mat)
+end
+
 function Trainer:computeScore(output, target, nCrops)
    if nCrops > 1 then
       -- Sum over crops

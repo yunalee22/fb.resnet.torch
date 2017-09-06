@@ -26,9 +26,16 @@ function DataLoader.create(opt)
       if split == 'train' then
         loaders[i]:injectNoise(dataset, opt)
       end
+      loaders[i].num_classes = dataset:getNumClasses()
+      print (loaders[i].num_classes)
+
    end
 
    return table.unpack(loaders)
+end
+
+function DataLoader:getNumClasses()
+  return self.num_classes
 end
 
 function DataLoader:injectNoise(dataset, opt)

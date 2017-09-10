@@ -43,25 +43,69 @@ function DataLoader:injectNoise(dataset, opt)
   print ("Noisy label probability: " .. tostring(p))
   math.randomseed(os.time())
 
-  for i = 1, dataset:size() do
-    local sample = dataset:get(i)
+  if (opt.mostConfusing) then
+    -- Valid choices = top 3 most confusing labels from confusion matrix
 
-    if (math.random() < p) then
-      local originalTrainingLabel = sample.target
-      local validOtherChoices = {}
+    -- Load confusion matrix
+    cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
 
-      -- Create valid other choices table
-      for j = 1, dataset:getNumClasses() do
-        table.insert(validOtherChoices, j)
+    -- Get 3 most confusable CM
+    local most_confusing = {}
+    for i = 1, cm:size(1) do
+      local indices = {}
+      for j = 1, cm:size(1) do
+        table.insert(indices, j)
       end
-      table.remove(validOtherChoices, originalTrainingLabel)
+      table.remove(indices, i)
+      indices = torch.Tensor(indices):long()
+      local cm_i = cm[i]:index(1, indices)
+      y, top3 = torch.topk(cm_i, 3, 1, true)
+      for j = 1, 3 do
+        if top3[j] >= i then
+          top3[j] = top3[j] + 1
+        end
+      end
+      table.insert(most_confusing, top3)
+    end
+    
+    for i = 1, dataset:size() do
+      local sample = dataset:get(i)
 
-      -- Set new training label for example
-      local newTrainingLabel = validOtherChoices[math.random(#validOtherChoices)]
-      dataset:set(i, newTrainingLabel)
-      print("New label for " .. i .. ": " .. dataset:get(i).target)
+      if (math.random() < p) then
+        local originalTrainingLabel = sample.target
+        local validOtherChoices = most_confusing[originalTrainingLabel]
+
+        -- Set new training label for example
+        local newTrainingLabel = validOtherChoices[math.random(validOtherChoices:size(1))]
+        dataset:set(i, newTrainingLabel)
+        --print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
+      end
+    end
+
+  else
+    -- Valid choices = any other label
+
+    for i = 1, dataset:size() do
+      local sample = dataset:get(i)
+
+      if (math.random() < p) then
+        local originalTrainingLabel = sample.target
+        local validOtherChoices = {}
+
+        -- Create valid other choices table
+        for j = 1, dataset:getNumClasses() do
+          table.insert(validOtherChoices, j)
+        end
+        table.remove(validOtherChoices, originalTrainingLabel)
+
+        -- Set new training label for example
+        local newTrainingLabel = validOtherChoices[math.random(#validOtherChoices)]
+        dataset:set(i, newTrainingLabel)
+        --print("New label for " .. i .. ": " .. dataset:get(i).target)
+      end
     end
   end
+
 end
 
 function DataLoader:__init(dataset, opt, split)

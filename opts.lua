@@ -53,6 +53,7 @@ function M.parse(arg)
    cmd:text()
    --------- Noisy label injection options -------------------
    cmd:option('-noisyLabelProbability', 0.0, 'Probability of label corruption')
+   cmd:option('-mostConfusing', false, 'Most confusing label noise experiment')
 
    local opt = cmd:parse(arg or {})
 

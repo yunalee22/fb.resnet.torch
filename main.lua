@@ -66,6 +66,11 @@ for epoch = startEpoch, opt.nEpochs do
 end
 
 -- Save confusion matrix
-trainer:saveConfusionMatrix(valLoader)
+--trainer:saveConfusionMatrix(valLoader)
 
 print(string.format(' * Finished top1: %6.3f  top5: %6.3f', bestTop1, bestTop5))
+
+-- Save top1 and top5
+local file = assert(io.open("tmp/record.txt", "a"))
+file:write(tostring(opt.noisyLabelProbability) .. ": " .. tostring(bestTop1) .. ", " .. tostring(bestTop5) .. "\n")
+file:close()

@@ -78,7 +78,7 @@ function DataLoader:injectNoise(dataset, opt)
         -- Set new training label for example
         local newTrainingLabel = validOtherChoices[math.random(validOtherChoices:size(1))]
         dataset:set(i, newTrainingLabel)
-        --print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
+        print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
       end
     end
 
@@ -101,7 +101,7 @@ function DataLoader:injectNoise(dataset, opt)
         -- Set new training label for example
         local newTrainingLabel = validOtherChoices[math.random(#validOtherChoices)]
         dataset:set(i, newTrainingLabel)
-        --print("New label for " .. i .. ": " .. dataset:get(i).target)
+        print("New label for " .. i .. ": " .. dataset:get(i).target)
       end
     end
   end

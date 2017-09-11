@@ -43,69 +43,62 @@ function DataLoader:injectNoise(dataset, opt)
   print ("Noisy label probability: " .. tostring(p))
   math.randomseed(os.time())
 
-  if (opt.mostConfusing) then
-    -- Valid choices = top 3 most confusing labels from confusion matrix
+  local numClasses = dataset:getNumClasses()
+  local validOtherChoices = {}
+  for i = 1, numClasses do
+    table.insert(validOtherChoices, {})
+  end
 
-    -- Load confusion matrix
-    cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
-
-    -- Get 3 most confusable CM
-    local most_confusing = {}
-    for i = 1, cm:size(1) do
-      local indices = {}
-      for j = 1, cm:size(1) do
-        table.insert(indices, j)
+  -- Determine valid choices based on experiment type
+  if (opt.experiment_type == 'random') then
+    for i = 1, numClasses do
+      for j = 1, numClasses do
+        table.insert(validOtherChoices[i], j)
       end
-      table.remove(indices, i)
-      indices = torch.Tensor(indices):long()
-      local cm_i = cm[i]:index(1, indices)
-      y, top3 = torch.topk(cm_i, 3, 1, true)
-      for j = 1, 3 do
-        if top3[j] >= i then
-          top3[j] = top3[j] + 1
-        end
-      end
-      table.insert(most_confusing, top3)
-    end
-    
-    for i = 1, dataset:size() do
-      local sample = dataset:get(i)
-
-      if (math.random() < p) then
-        local originalTrainingLabel = sample.target
-        local validOtherChoices = most_confusing[originalTrainingLabel]
-
-        -- Set new training label for example
-        local newTrainingLabel = validOtherChoices[math.random(validOtherChoices:size(1))]
-        dataset:set(i, newTrainingLabel)
-        print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
-      end
+      table.remove(validOtherChoices[i], i)
     end
 
   else
-    -- Valid choices = any other label
+    cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
 
-    for i = 1, dataset:size() do
-      local sample = dataset:get(i)
-
-      if (math.random() < p) then
-        local originalTrainingLabel = sample.target
-        local validOtherChoices = {}
-
-        -- Create valid other choices table
-        for j = 1, dataset:getNumClasses() do
-          table.insert(validOtherChoices, j)
-        end
-        table.remove(validOtherChoices, originalTrainingLabel)
-
-        -- Set new training label for example
-        local newTrainingLabel = validOtherChoices[math.random(#validOtherChoices)]
-        dataset:set(i, newTrainingLabel)
-        print("New label for " .. i .. ": " .. dataset:get(i).target)
+    for i = 1, numClasses do
+      -- Remove original label
+      local idx = {}
+      for j = 1, numClasses do
+        table.insert(idx, j)
       end
+      table.remove(idx, i)
+      idx = torch.Tensor(idx):long()
+      local choices = cm[i]:index(1, idx)
+
+      -- Select topk most or least confusing labels
+      local k = numClasses * 0.3
+      if (opt.experiment_type == 'most') then
+        _, topk = torch.topk(choices, k, 1, true)
+      elseif (opt.experiment_type == 'least') then
+        _, topk = torch.topk(choices, k, 1, false)
+      end
+      for j = 1, k do
+        if topk[j] >= i then
+          topk[j] = topk[j] + 1
+        end
+      end
+
+      validOtherChoices[i] = torch.totable(topk)
     end
   end
 
+  -- Inject label noise
+  for i = 1, dataset:size() do
+    local sample = dataset:get(i)
+    if (math.random() < p) then
+      local originalTrainingLabel = sample.target
+      local choices = validOtherChoices[originalTrainingLabel]
+      local newTrainingLabel = choices[math.random(#choices)]
+      dataset:set(i, newTrainingLabel)
+      print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
+    end
+  end
 end
 
 function DataLoader:__init(dataset, opt, split)

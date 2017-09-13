@@ -66,7 +66,7 @@ for epoch = startEpoch, opt.nEpochs do
 end
 
 -- Save confusion matrix
---trainer:saveConfusionMatrix(valLoader)
+trainer:saveConfusionMatrix(valLoader)
 
 print(string.format(' * Finished top1: %6.3f  top5: %6.3f', bestTop1, bestTop5))
 

@@ -47,12 +47,16 @@ end
 local startEpoch = checkpoint and checkpoint.epoch + 1 or opt.epochNumber
 local bestTop1 = math.huge
 local bestTop5 = math.huge
+local top1Errors = {}
+local top5Errors = {}
 for epoch = startEpoch, opt.nEpochs do
    -- Train for a single epoch
    local trainTop1, trainTop5, trainLoss = trainer:train(epoch, trainLoader)
 
    -- Run model on validation set
    local testTop1, testTop5 = trainer:test(epoch, valLoader)
+   table.insert(top1Errors, testTop1)
+   table.insert(top5Errors, testTop5)
 
    local bestModel = false
    if testTop1 < bestTop1 then
@@ -65,12 +69,15 @@ for epoch = startEpoch, opt.nEpochs do
    checkpoints.save(epoch, model, trainer.optimState, bestModel, opt)
 end
 
--- Save confusion matrix
-trainer:saveConfusionMatrix(valLoader)
-
 print(string.format(' * Finished top1: %6.3f  top5: %6.3f', bestTop1, bestTop5))
 
--- Save top1 and top5
-local file = assert(io.open("tmp/record.txt", "a"))
-file:write(tostring(opt.noisyLabelProbability) .. ": " .. tostring(bestTop1) .. ", " .. tostring(bestTop5) .. "\n")
+-- Save confusion matrix
+--trainer:saveConfusionMatrix(valLoader)
+
+-- Write top1 and top5 errors to file
+local file = assert(io.open(opt.logFilePath .. 'errors.txt', 'w'))
+for i = 1, opt.nEpochs do
+  file:write(string.format('Epoch: %d  top1: %6.3f  top5: %6.3f\n', i, top1Errors[i], top5Errors[i]))
+end
+file:write(string.format('* Finished top 1: %6.3f  top5: %6.3f\n', bestTop1, bestTop5))
 file:close()

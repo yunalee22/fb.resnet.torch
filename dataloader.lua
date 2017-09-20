@@ -16,6 +16,8 @@ Threads.serialization('threads.sharedserialize')
 local M = {}
 local DataLoader = torch.class('resnet.DataLoader', M)
 
+require "lfs"
+
 function DataLoader.create(opt)
    -- The train and val loader
    local loaders = {}
@@ -27,8 +29,6 @@ function DataLoader.create(opt)
         loaders[i]:injectNoise(dataset, opt)
       end
       loaders[i].num_classes = dataset:getNumClasses()
-      print (loaders[i].num_classes)
-
    end
 
    return table.unpack(loaders)
@@ -50,7 +50,7 @@ function DataLoader:injectNoise(dataset, opt)
   end
 
   -- Determine valid choices based on experiment type
-  if (opt.experiment_type == 'random') then
+  if (opt.experimentType == 'random') then
     for i = 1, numClasses do
       for j = 1, numClasses do
         table.insert(validOtherChoices[i], j)
@@ -59,7 +59,8 @@ function DataLoader:injectNoise(dataset, opt)
     end
 
   else
-    cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
+    local cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
+    local k = opt.k
 
     for i = 1, numClasses do
       -- Remove original label
@@ -72,10 +73,9 @@ function DataLoader:injectNoise(dataset, opt)
       local choices = cm[i]:index(1, idx)
 
       -- Select topk most or least confusing labels
-      local k = numClasses * 0.3
-      if (opt.experiment_type == 'most') then
+      if (opt.experimentType == 'most') then
         _, topk = torch.topk(choices, k, 1, true)
-      elseif (opt.experiment_type == 'least') then
+      elseif (opt.experimentType == 'least') then
         _, topk = torch.topk(choices, k, 1, false)
       end
       for j = 1, k do
@@ -88,7 +88,29 @@ function DataLoader:injectNoise(dataset, opt)
     end
   end
 
+  -- Write valid other choices matrix to file
+  lfs.mkdir(opt.logFilePath)
+  local file = assert(io.open(opt.logFilePath .. 'candidates.txt', 'w'))
+  for i = 1, numClasses do
+    file:write(string.format('Class %d -> {', i))
+    for j = 1, #(validOtherChoices[i]) do 
+      file:write(string.format('%d ', validOtherChoices[i][j]))
+    end
+    file:write('}\n')
+  end
+  file:close()
+
+  -- Table to count corruptions from label i to label j
+  local noiseStats = {}
+  for i = 1, numClasses do
+    noiseStats[i] = {}
+    for j = 1, numClasses do
+      noiseStats[i][j] = 0
+    end
+  end
+
   -- Inject label noise
+  local labels = {}
   for i = 1, dataset:size() do
     local sample = dataset:get(i)
     if (math.random() < p) then
@@ -96,9 +118,26 @@ function DataLoader:injectNoise(dataset, opt)
       local choices = validOtherChoices[originalTrainingLabel]
       local newTrainingLabel = choices[math.random(#choices)]
       dataset:set(i, newTrainingLabel)
-      print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
+      -- print("Label " .. originalTrainingLabel .. " -> " .. dataset:get(i).target)
+      table.insert(labels, newTrainingLabel)
+      noiseStats[originalTrainingLabel][newTrainingLabel] = noiseStats[originalTrainingLabel][newTrainingLabel] + 1 
     end
   end
+
+  -- Write labels to file
+  torch.save(opt.logFilePath .. 'labels.txt', labels)
+
+  -- Write noise injection statistics to file
+  torch.save(opt.logFilePath .. 'noiseStatistics.txt', noiseStats)
+  -- for i = 1, numClasses do
+  --   file:write(string.format('Class %d -> {', i))
+  --   for j = 1, numClasses do
+  --     file:write(string.format('Class %d: %d ', j, noiseStats[i][j]))
+  --   end
+  --   file:write('}\n')
+  -- end
+  -- file:close()
+
 end
 
 function DataLoader:__init(dataset, opt, split)

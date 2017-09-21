@@ -16,8 +16,6 @@ Threads.serialization('threads.sharedserialize')
 local M = {}
 local DataLoader = torch.class('resnet.DataLoader', M)
 
-require "lfs"
-
 function DataLoader.create(opt)
    -- The train and val loader
    local loaders = {}
@@ -89,7 +87,7 @@ function DataLoader:injectNoise(dataset, opt)
   end
 
   -- Write valid other choices matrix to file
-  lfs.mkdir(opt.logFilePath)
+  os.execute('mkdir -p ' .. opt.logFilePath)
   local file = assert(io.open(opt.logFilePath .. 'candidates.txt', 'w'))
   for i = 1, numClasses do
     file:write(string.format('Class %d -> {', i))

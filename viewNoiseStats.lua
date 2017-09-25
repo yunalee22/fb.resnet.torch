@@ -1,3 +1,5 @@
+require 'gnuplot'
+
 print ('Path: ' .. arg[1])
 local noiseStats = torch.load(arg[1])
 
@@ -10,3 +12,5 @@ for i = 1, #noiseStats do
   end
   io.write('\n')
 end
+
+gnuplot.hist(torch.randn(100000), 100)

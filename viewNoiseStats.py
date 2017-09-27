@@ -17,10 +17,10 @@ for i in range(len(noiseStats)):
 	print ('\n')
 
 # Show bar chart
-class_ind = int(sys.argv[2])
+# class_ind = int(sys.argv[2])
 num_classes = 100
-data = noiseStats[class_ind]
-#data = np.sum(noiseStats, axis=0)
+# data = noiseStats[class_ind]
+data = np.sum(noiseStats, axis=0)
 ind = np.arange(num_classes)
 width = 0.1
 

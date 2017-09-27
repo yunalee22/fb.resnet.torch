@@ -36,10 +36,18 @@ function DataLoader:getNumClasses()
   return self.num_classes
 end
 
+function DataLoader:reduceImagesPerClass(dataset, opt)
+  local imagesPerClass = opt.imagesPerClass
+  dataset:reduceDatasetSize(imagesPerClass)
+end
+
 function DataLoader:injectNoise(dataset, opt)
+  if (opt.experimentType == '')
+    return
+  end
+
   local p = opt.noisyLabelProbability
   print ("Noisy label probability: " .. tostring(p))
-  math.randomseed(os.time())
 
   local numClasses = dataset:getNumClasses()
   local validOtherChoices = {}
@@ -56,7 +64,7 @@ function DataLoader:injectNoise(dataset, opt)
       table.remove(validOtherChoices[i], i)
     end
 
-  else
+  elseif (opt.experimentType == 'most' or opt.experimentType == 'least')
     local cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
     local k = opt.k
 
@@ -108,6 +116,7 @@ function DataLoader:injectNoise(dataset, opt)
   end
 
   -- Inject label noise
+  math.randomseed(os.time())
   local labels = {}
   for i = 1, dataset:size() do
     local sample = dataset:get(i)
@@ -122,19 +131,9 @@ function DataLoader:injectNoise(dataset, opt)
     end
   end
 
-  -- Write labels to file
+  -- Write labels and noise injection statistics to file
   torch.save(opt.logFilePath .. 'labels.txt', labels)
-
-  -- Write noise injection statistics to file
   torch.save(opt.logFilePath .. 'noiseStatistics.txt', noiseStats)
-  -- for i = 1, numClasses do
-  --   file:write(string.format('Class %d -> {', i))
-  --   for j = 1, numClasses do
-  --     file:write(string.format('Class %d: %d ', j, noiseStats[i][j]))
-  --   end
-  --   file:write('}\n')
-  -- end
-  -- file:close()
 
 end
 

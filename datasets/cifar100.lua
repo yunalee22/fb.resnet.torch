@@ -38,6 +38,11 @@ function CifarDataset:set(i, value)
   self.imageInfo.labels[i] = value
 end
 
+function CifarDataset:reduceDatasetSize(numElements)
+  self.imageInfo.data = self.imageInfo.data[{{1, numElements}}]
+  self.imageInfo.labels = self.imageInfo.labels[{{1, numElements}}]
+end
+
 function CifarDataset:getNumClasses()
   return 100
 end

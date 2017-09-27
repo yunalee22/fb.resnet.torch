@@ -25,6 +25,7 @@ function DataLoader.create(opt)
       loaders[i] = M.DataLoader(dataset, opt, split)
       if split == 'train' then
         loaders[i]:injectNoise(dataset, opt)
+        loaders[i]:reduceImagesPerClass(dataset, opt)
       end
       loaders[i].num_classes = dataset:getNumClasses()
    end
@@ -42,7 +43,7 @@ function DataLoader:reduceImagesPerClass(dataset, opt)
 end
 
 function DataLoader:injectNoise(dataset, opt)
-  if (opt.experimentType == '')
+  if (opt.experimentType == '') then
     return
   end
 
@@ -64,7 +65,7 @@ function DataLoader:injectNoise(dataset, opt)
       table.remove(validOtherChoices[i], i)
     end
 
-  elseif (opt.experimentType == 'most' or opt.experimentType == 'least')
+  elseif (opt.experimentType == 'most' or opt.experimentType == 'least') then
     local cm = torch.load('conf/cf_' .. opt.dataset .. '.dat')
     local k = opt.k
 
@@ -92,6 +93,10 @@ function DataLoader:injectNoise(dataset, opt)
 
       validOtherChoices[i] = torch.totable(topk)
     end
+
+  else
+    return
+
   end
 
   -- Write valid other choices matrix to file
